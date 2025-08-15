@@ -1,0 +1,1141 @@
+// Garden Center PWA Database Schema
+// This schema defines all the models for a comprehensive garden center management system
+// Following PostgreSQL best practices and Prisma conventions
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =====================================
+// USER MANAGEMENT & AUTHENTICATION
+// =====================================
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model User {
+  id                    String                 @id @default(cuid())
+  email                 String                 @unique
+  emailVerified         DateTime?
+  name                  String?
+  image                 String?
+  hashedPassword        String?
+  role                  UserRole               @default(CUSTOMER)
+  isActive              Boolean                @default(true)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  
+  // Customer-specific fields
+  phone                 String?
+  dateOfBirth           DateTime?
+  preferredContactMethod ContactMethod         @default(EMAIL)
+  loyaltyPoints         Int                    @default(0)
+  totalSpent            Decimal                @default(0) @db.Decimal(10, 2)
+  
+  // Business customer fields (for wholesale)
+  businessName          String?
+  businessType          BusinessType?
+  taxId                 String?
+  wholesaleDiscount     Decimal?               @db.Decimal(5, 2) // Percentage discount
+  creditLimit           Decimal?               @db.Decimal(10, 2)
+  paymentTerms          Int?                   // Days for payment
+  
+  // Address information
+  addresses             Address[]
+  
+  // Relations
+  accounts              Account[]
+  sessions              Session[]
+  orders                Order[]
+  cartItems             CartItem[]
+  wishlistItems         WishlistItem[]
+  reviews               Review[]
+  consultations         Consultation[]
+  loyaltyTransactions   LoyaltyTransaction[]
+  notifications         Notification[]
+  plantIdentifications  PlantIdentification[]
+  
+  // Staff relations (if user is staff)
+  managedInventory      InventoryItem[]        @relation("InventoryManager")
+  assignedOrders        Order[]                @relation("AssignedStaff")
+  deliveries            Delivery[]             @relation("DeliveryDriver")
+
+  @@map("users")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model Address {
+  id           String      @id @default(cuid())
+  userId       String
+  type         AddressType @default(SHIPPING)
+  firstName    String
+  lastName     String
+  company      String?
+  street1      String
+  street2      String?
+  city         String
+  state        String
+  zipCode      String
+  country      String      @default("US")
+  phone        String?
+  isDefault    Boolean     @default(false)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders       Order[]     @relation("ShippingAddress")
+  billingOrders Order[]    @relation("BillingAddress")
+
+  @@map("addresses")
+}
+
+// =====================================
+// PRODUCT CATALOG MANAGEMENT
+// =====================================
+
+model Category {
+  id            String     @id @default(cuid())
+  name          String
+  slug          String     @unique
+  description   String?
+  image         String?
+  parentId      String?
+  sortOrder     Int        @default(0)
+  isActive      Boolean    @default(true)
+  seoTitle      String?
+  seoDescription String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  
+  parent        Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children      Category[] @relation("CategoryHierarchy")
+  products      Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id                String              @id @default(cuid())
+  name              String
+  slug              String              @unique
+  description       String?
+  shortDescription  String?
+  sku               String              @unique
+  barcode           String?
+  
+  // Pricing
+  price             Decimal             @db.Decimal(10, 2)
+  salePrice         Decimal?            @db.Decimal(10, 2)
+  wholesalePrice    Decimal?            @db.Decimal(10, 2)
+  cost              Decimal?            @db.Decimal(10, 2)
+  
+  // Physical attributes
+  weight            Decimal?            @db.Decimal(8, 3) // in pounds
+  dimensions        String?             // "L x W x H"
+  
+  // Plant-specific attributes
+  plantType         PlantType?
+  sunRequirement    SunRequirement?
+  waterRequirement  WaterRequirement?
+  soilType          SoilType?
+  hardinessZone     String?
+  bloomTime         String?
+  matureSize        String?
+  plantSpacing      String?
+  plantDepth        String?
+  
+  // Care instructions
+  careInstructions  String?             @db.Text
+  plantingTips      String?             @db.Text
+  
+  // Product status and visibility
+  status            ProductStatus       @default(DRAFT)
+  isActive          Boolean             @default(true)
+  isFeatured        Boolean             @default(false)
+  isDigital         Boolean             @default(false)
+  requiresShipping  Boolean             @default(true)
+  
+  // SEO and metadata
+  seoTitle          String?
+  seoDescription    String?
+  metaKeywords      String?
+  
+  // Timestamps
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  publishedAt       DateTime?
+  
+  // Relations
+  categoryId        String
+  category          Category            @relation(fields: [categoryId], references: [id])
+  images            ProductImage[]
+  variants          ProductVariant[]
+  inventory         InventoryItem[]
+  orderItems        OrderItem[]
+  cartItems         CartItem[]
+  wishlistItems     WishlistItem[]
+  reviews           Review[]
+  tags              ProductTag[]
+  relatedProducts   ProductRelation[]   @relation("MainProduct")
+  relatedTo         ProductRelation[]   @relation("RelatedProduct")
+  mortalityLogs     MortalityLog[]
+  plantIdentifications PlantIdentification[]
+  speciesMappings   PlantSpeciesMapping[]
+  purchaseOrderItems PurchaseOrderItem[]
+
+  @@map("products")
+}
+
+model ProductVariant {
+  id            String          @id @default(cuid())
+  productId     String
+  name          String          // e.g., "Small Pot", "Large", "Red"
+  sku           String          @unique
+  price         Decimal?        @db.Decimal(10, 2)
+  salePrice     Decimal?        @db.Decimal(10, 2)
+  weight        Decimal?        @db.Decimal(8, 3)
+  dimensions    String?
+  sortOrder     Int             @default(0)
+  isActive      Boolean         @default(true)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  
+  product       Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  inventory     InventoryItem[]
+  orderItems    OrderItem[]
+  cartItems     CartItem[]
+  attributes    VariantAttribute[]
+  mortalityLogs MortalityLog[]
+  plantIdentifications PlantIdentification[]
+  speciesMappings PlantSpeciesMapping[]
+  purchaseOrderItems PurchaseOrderItem[]
+
+  @@map("product_variants")
+}
+
+model VariantAttribute {
+  id          String         @id @default(cuid())
+  variantId   String
+  name        String         // e.g., "Size", "Color", "Pot Type"
+  value       String         // e.g., "Large", "Red", "Ceramic"
+  
+  variant     ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@unique([variantId, name])
+  @@map("variant_attributes")
+}
+
+model ProductImage {
+  id          String   @id @default(cuid())
+  productId   String
+  url         String
+  alt         String?
+  sortOrder   Int      @default(0)
+  isPrimary   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("product_images")
+}
+
+model ProductTag {
+  id        String   @id @default(cuid())
+  productId String
+  tag       String
+  createdAt DateTime @default(now())
+  
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, tag])
+  @@map("product_tags")
+}
+
+model ProductRelation {
+  id              String      @id @default(cuid())
+  productId       String
+  relatedProductId String
+  relationType    RelationType @default(RELATED)
+  createdAt       DateTime    @default(now())
+  
+  product         Product     @relation("MainProduct", fields: [productId], references: [id], onDelete: Cascade)
+  relatedProduct  Product     @relation("RelatedProduct", fields: [relatedProductId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, relatedProductId])
+  @@map("product_relations")
+}
+
+// =====================================
+// PLANT MORTALITY & LIFECYCLE TRACKING
+// =====================================
+
+model PlantLifecycle {
+  id              String            @id @default(cuid())
+  inventoryItemId String
+  
+  // Lifecycle tracking
+  receivedDate    DateTime          @default(now())
+  daysInYard      Int               @default(0) // Calculated field
+  healthStatus    PlantHealthStatus @default(EXCELLENT)
+  lastInspection  DateTime?
+  nextInspection  DateTime?
+  
+  // Mortality tracking
+  isAlive         Boolean           @default(true)
+  deathDate       DateTime?
+  deathReason     DeathReason?
+  mortalityNotes  String?
+  
+  // Care tracking
+  lastWatered     DateTime?
+  lastFertilized  DateTime?
+  lastTrimmed     DateTime?
+  careNotes       String?
+  
+  // Alert settings
+  alertThreshold  Int               @default(90) // Days before alert
+  needsAttention  Boolean           @default(false)
+  markedForSale   Boolean           @default(false) // Markdown flag
+  
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  
+  inventoryItem   InventoryItem     @relation(fields: [inventoryItemId], references: [id])
+
+  @@unique([inventoryItemId])
+  @@map("plant_lifecycles")
+}
+
+model MortalityLog {
+  id              String        @id @default(cuid())
+  inventoryItemId String
+  productId       String
+  variantId       String?
+  
+  // Death details
+  deathDate       DateTime      @default(now())
+  reason          DeathReason
+  quantity        Int           @default(1)
+  location        String?
+  
+  // Financial impact
+  unitCost        Decimal?      @db.Decimal(10, 2)
+  totalLoss       Decimal?      @db.Decimal(10, 2)
+  
+  // Analysis
+  daysInInventory Int?
+  season          String?       // Spring, Summer, Fall, Winter
+  weatherConditions String?
+  
+  notes           String?
+  reportedBy      String?       // Staff member ID
+  
+  createdAt       DateTime      @default(now())
+  
+  inventoryItem   InventoryItem @relation(fields: [inventoryItemId], references: [id])
+  product         Product       @relation(fields: [productId], references: [id])
+  variant         ProductVariant? @relation(fields: [variantId], references: [id])
+
+  @@map("mortality_logs")
+}
+
+// =====================================
+// AI PLANT RECOGNITION SYSTEM
+// =====================================
+
+model PlantIdentification {
+  id              String                    @id @default(cuid())
+  
+  // Image and recognition data
+  imageUrl        String
+  imageHash       String?                   // For duplicate detection
+  
+  // AI Results
+  identifiedSpecies String?                 // Scientific name from AI
+  commonName      String?                   // Common name from AI
+  confidence      Decimal                   @db.Decimal(5, 4) // 0.0000 to 1.0000
+  alternativeResults Json?                  // Other possible matches
+  
+  // User and context
+  identifiedBy    String?                   // User ID who scanned
+  location        String?                   // Where in garden center
+  
+  // Product mapping
+  mappedProductId String?                   // Our product match
+  mappedVariantId String?                   // Specific variant match
+  mappingConfidence Decimal?                @db.Decimal(5, 4)
+  manuallyVerified Boolean                  @default(false)
+  
+  // Usage tracking
+  resultViewed    Boolean                   @default(false)
+  addedToCart     Boolean                   @default(false)
+  purchased       Boolean                   @default(false)
+  
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+  
+  user            User?                     @relation(fields: [identifiedBy], references: [id])
+  mappedProduct   Product?                  @relation(fields: [mappedProductId], references: [id])
+  mappedVariant   ProductVariant?           @relation(fields: [mappedVariantId], references: [id])
+
+  @@index([identifiedSpecies])
+  @@index([confidence])
+  @@map("plant_identifications")
+}
+
+model PlantSpeciesMapping {
+  id                String   @id @default(cuid())
+  
+  // AI species data
+  scientificName    String
+  commonNames       String[] // Array of common names
+  
+  // Our product mapping
+  productId         String
+  variantId         String?
+  
+  // Mapping confidence and verification
+  confidence        Decimal  @db.Decimal(5, 4)
+  manuallyVerified  Boolean  @default(false)
+  verifiedBy        String?  // Staff member who verified
+  verifiedAt        DateTime?
+  
+  // Usage statistics
+  identificationCount Int    @default(0)
+  successfulMatches   Int    @default(0)
+  
+  notes             String?
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  product           Product  @relation(fields: [productId], references: [id])
+  variant           ProductVariant? @relation(fields: [variantId], references: [id])
+
+  @@unique([scientificName, productId, variantId])
+  @@index([scientificName])
+  @@map("plant_species_mappings")
+}
+
+// =====================================
+// PROCUREMENT & GROWER MANAGEMENT
+// =====================================
+
+model PurchaseOrder {
+  id              String              @id @default(cuid())
+  poNumber        String              @unique
+  supplierId      String
+  
+  // Order details
+  status          PurchaseOrderStatus @default(DRAFT)
+  orderDate       DateTime            @default(now())
+  expectedDate    DateTime?
+  receivedDate    DateTime?
+  
+  // Pricing
+  subtotal        Decimal             @db.Decimal(10, 2)
+  taxAmount       Decimal             @default(0) @db.Decimal(10, 2)
+  shippingAmount  Decimal             @default(0) @db.Decimal(10, 2)
+  total           Decimal             @db.Decimal(10, 2)
+  
+  // Payment
+  paymentTerms    Int?                // Days
+  paymentStatus   PurchasePaymentStatus @default(PENDING)
+  invoiceNumber   String?
+  paidDate        DateTime?
+  
+  notes           String?
+  createdBy       String?             // Staff member ID
+  receivedBy      String?             // Staff member ID
+  
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  
+  supplier        Supplier            @relation(fields: [supplierId], references: [id])
+  items           PurchaseOrderItem[]
+
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id                String        @id @default(cuid())
+  purchaseOrderId   String
+  productId         String
+  variantId         String?
+  
+  // Order details
+  quantity          Int
+  unitCost          Decimal       @db.Decimal(10, 2)
+  totalCost         Decimal       @db.Decimal(10, 2)
+  
+  // Receiving details
+  quantityReceived  Int           @default(0)
+  quantityDamaged   Int           @default(0)
+  receivedDate      DateTime?
+  
+  // Quality notes
+  qualityNotes      String?
+  condition         ItemCondition @default(EXCELLENT)
+  
+  createdAt         DateTime      @default(now())
+  
+  purchaseOrder     PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  product           Product       @relation(fields: [productId], references: [id])
+  variant           ProductVariant? @relation(fields: [variantId], references: [id])
+
+  @@map("purchase_order_items")
+}
+
+// =====================================
+// INVENTORY MANAGEMENT (Enhanced)
+// =====================================
+
+model InventoryItem {
+  id                String            @id @default(cuid())
+  productId         String
+  variantId         String?
+  
+  // Stock levels
+  quantity          Int               @default(0)
+  reservedQuantity  Int               @default(0) // Items in carts but not ordered
+  reorderLevel      Int               @default(10)
+  reorderQuantity   Int               @default(50)
+  
+  // Location tracking
+  location          String?           // Greenhouse A, Section B, etc.
+  zone              String?           // Indoor, Outdoor, Greenhouse
+  
+  // Supplier information
+  supplierId        String?
+  supplierSku       String?
+  lastRestockedAt   DateTime?
+  nextRestockDate   DateTime?
+  
+  // Cost tracking
+  unitCost          Decimal?          @db.Decimal(10, 2)
+  totalValue        Decimal?          @db.Decimal(10, 2)
+  
+  // Quality and condition
+  condition         ItemCondition     @default(EXCELLENT)
+  expirationDate    DateTime?         // For perishable items
+  lotNumber         String?
+  
+  // Management
+  managerId         String?
+  isActive          Boolean           @default(true)
+  notes             String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  
+  // Relations
+  product           Product           @relation(fields: [productId], references: [id])
+  variant           ProductVariant?   @relation(fields: [variantId], references: [id])
+  supplier          Supplier?         @relation(fields: [supplierId], references: [id])
+  manager           User?             @relation("InventoryManager", fields: [managerId], references: [id])
+  movements         InventoryMovement[]
+  lifecycle         PlantLifecycle?
+  mortalityLogs     MortalityLog[]
+
+  @@unique([productId, variantId])
+  @@map("inventory_items")
+}
+
+model InventoryMovement {
+  id              String        @id @default(cuid())
+  inventoryItemId String
+  type            MovementType
+  quantity        Int
+  reason          String?
+  referenceId     String?       // Order ID, Transfer ID, etc.
+  referenceType   String?       // "order", "transfer", "adjustment"
+  notes           String?
+  createdAt       DateTime      @default(now())
+  createdById     String?
+  
+  inventoryItem   InventoryItem @relation(fields: [inventoryItemId], references: [id])
+
+  @@map("inventory_movements")
+}
+
+model Supplier {
+  id              String          @id @default(cuid())
+  name            String
+  contactPerson   String?
+  email           String?
+  phone           String?
+  website         String?
+  
+  // Address
+  street1         String?
+  street2         String?
+  city            String?
+  state           String?
+  zipCode         String?
+  country         String?
+  
+  // Business details
+  taxId           String?
+  paymentTerms    Int?            // Days
+  leadTime        Int?            // Days
+  minimumOrder    Decimal?        @db.Decimal(10, 2)
+  
+  isActive        Boolean         @default(true)
+  rating          Int?            // 1-5 stars
+  notes           String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  
+  inventory       InventoryItem[]
+  purchaseOrders  PurchaseOrder[]
+
+  @@map("suppliers")
+}
+
+// =====================================
+// SHOPPING CART & WISHLIST
+// =====================================
+
+model CartItem {
+  id        String          @id @default(cuid())
+  userId    String
+  productId String
+  variantId String?
+  quantity  Int
+  notes     String?         // Special requests
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant   ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId, variantId])
+  @@map("cart_items")
+}
+
+model WishlistItem {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  notes     String?
+  createdAt DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@map("wishlist_items")
+}
+
+// =====================================
+// ORDER MANAGEMENT
+// =====================================
+
+model Order {
+  id                  String       @id @default(cuid())
+  orderNumber         String       @unique
+  userId              String
+  
+  // Order status and type
+  status              OrderStatus  @default(PENDING)
+  type                OrderType    @default(RETAIL)
+  source              OrderSource  @default(ONLINE)
+  
+  // Pricing
+  subtotal            Decimal      @db.Decimal(10, 2)
+  taxAmount           Decimal      @db.Decimal(10, 2)
+  shippingAmount      Decimal      @db.Decimal(10, 2)
+  discountAmount      Decimal      @default(0) @db.Decimal(10, 2)
+  total               Decimal      @db.Decimal(10, 2)
+  
+  // Payment
+  paymentStatus       PaymentStatus @default(PENDING)
+  paymentMethod       PaymentMethod?
+  paymentReference    String?      // Stripe payment intent ID, etc.
+  
+  // Shipping
+  shippingMethod      String?
+  estimatedDelivery   DateTime?
+  actualDelivery      DateTime?
+  trackingNumber      String?
+  
+  // Addresses
+  shippingAddressId   String?
+  billingAddressId    String?
+  
+  // Special instructions and notes
+  customerNotes       String?
+  internalNotes       String?
+  giftMessage         String?
+  isGift              Boolean      @default(false)
+  
+  // Staff assignment
+  assignedStaffId     String?
+  
+  // Timestamps
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  completedAt         DateTime?
+  cancelledAt         DateTime?
+  
+  // Relations
+  user                User         @relation(fields: [userId], references: [id])
+  shippingAddress     Address?     @relation("ShippingAddress", fields: [shippingAddressId], references: [id])
+  billingAddress      Address?     @relation("BillingAddress", fields: [billingAddressId], references: [id])
+  assignedStaff       User?        @relation("AssignedStaff", fields: [assignedStaffId], references: [id])
+  items               OrderItem[]
+  statusHistory       OrderStatusHistory[]
+  delivery            Delivery?
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id              String          @id @default(cuid())
+  orderId         String
+  productId       String
+  variantId       String?
+  quantity        Int
+  unitPrice       Decimal         @db.Decimal(10, 2)
+  totalPrice      Decimal         @db.Decimal(10, 2)
+  
+  // Snapshot data (in case product details change)
+  productName     String
+  productSku      String
+  variantName     String?
+  
+  createdAt       DateTime        @default(now())
+  
+  order           Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product         Product         @relation(fields: [productId], references: [id])
+  variant         ProductVariant? @relation(fields: [variantId], references: [id])
+
+  @@map("order_items")
+}
+
+model OrderStatusHistory {
+  id        String      @id @default(cuid())
+  orderId   String
+  status    OrderStatus
+  notes     String?
+  createdAt DateTime    @default(now())
+  createdBy String?     // Staff member who updated status
+  
+  order     Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("order_status_history")
+}
+
+// =====================================
+// DELIVERY MANAGEMENT
+// =====================================
+
+model Delivery {
+  id                String        @id @default(cuid())
+  orderId           String        @unique
+  driverId          String?
+  
+  status            DeliveryStatus @default(PENDING)
+  scheduledDate     DateTime?
+  deliveredAt       DateTime?
+  
+  // Delivery details
+  deliveryInstructions String?
+  recipientName     String?
+  recipientPhone    String?
+  signatureRequired Boolean       @default(false)
+  signature         String?       // Base64 encoded signature
+  
+  // Tracking
+  estimatedArrival  DateTime?
+  actualArrival     DateTime?
+  deliveryNotes     String?
+  
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  
+  order             Order         @relation(fields: [orderId], references: [id])
+  driver            User?         @relation("DeliveryDriver", fields: [driverId], references: [id])
+
+  @@map("deliveries")
+}
+
+// =====================================
+// CUSTOMER ENGAGEMENT
+// =====================================
+
+model Review {
+  id          String   @id @default(cuid())
+  userId      String
+  productId   String
+  rating      Int      // 1-5 stars
+  title       String?
+  comment     String?
+  isVerified  Boolean  @default(false) // Verified purchase
+  isApproved  Boolean  @default(false)
+  helpfulVotes Int     @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  user        User     @relation(fields: [userId], references: [id])
+  product     Product  @relation(fields: [productId], references: [id])
+
+  @@unique([userId, productId])
+  @@map("reviews")
+}
+
+model Consultation {
+  id            String            @id @default(cuid())
+  userId        String
+  type          ConsultationType
+  status        ConsultationStatus @default(REQUESTED)
+  
+  // Consultation details
+  title         String
+  description   String
+  preferredDate DateTime?
+  actualDate    DateTime?
+  duration      Int?              // Minutes
+  
+  // Location (for in-person consultations)
+  location      String?
+  
+  // Staff assignment
+  assignedStaffId String?
+  
+  notes         String?
+  followUpRequired Boolean        @default(false)
+  followUpDate  DateTime?
+  
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  completedAt   DateTime?
+  
+  user          User              @relation(fields: [userId], references: [id])
+
+  @@map("consultations")
+}
+
+model LoyaltyTransaction {
+  id            String            @id @default(cuid())
+  userId        String
+  type          LoyaltyTransactionType
+  points        Int
+  description   String
+  referenceId   String?           // Order ID, etc.
+  expiresAt     DateTime?
+  createdAt     DateTime          @default(now())
+  
+  user          User              @relation(fields: [userId], references: [id])
+
+  @@map("loyalty_transactions")
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  isRead    Boolean          @default(false)
+  data      Json?            // Additional notification data
+  createdAt DateTime         @default(now())
+  readAt    DateTime?
+  
+  user      User             @relation(fields: [userId], references: [id])
+
+  @@map("notifications")
+}
+
+// =====================================
+// ENUMS
+// =====================================
+
+enum UserRole {
+  CUSTOMER
+  WHOLESALE_CUSTOMER
+  STAFF
+  INVENTORY_MANAGER
+  DELIVERY_DRIVER
+  MANAGER
+  ADMIN
+}
+
+enum ContactMethod {
+  EMAIL
+  PHONE
+  SMS
+}
+
+enum BusinessType {
+  RETAILER
+  LANDSCAPER
+  CONTRACTOR
+  NURSERY
+  FARM
+  OTHER
+}
+
+enum AddressType {
+  SHIPPING
+  BILLING
+  BOTH
+}
+
+enum PlantType {
+  ANNUAL
+  PERENNIAL
+  SHRUB
+  TREE
+  HOUSEPLANT
+  SUCCULENT
+  HERB
+  VEGETABLE
+  BULB
+  GRASS
+  FERN
+  VINE
+}
+
+enum SunRequirement {
+  FULL_SUN
+  PARTIAL_SUN
+  PARTIAL_SHADE
+  FULL_SHADE
+}
+
+enum WaterRequirement {
+  LOW
+  MODERATE
+  HIGH
+  VERY_HIGH
+}
+
+enum SoilType {
+  CLAY
+  SANDY
+  LOAMY
+  WELL_DRAINING
+  MOIST
+  DRY
+}
+
+enum ProductStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+  OUT_OF_STOCK
+}
+
+enum RelationType {
+  RELATED
+  UPSELL
+  CROSS_SELL
+  ACCESSORY
+  REPLACEMENT
+}
+
+enum ItemCondition {
+  EXCELLENT
+  GOOD
+  FAIR
+  DAMAGED
+  EXPIRED
+}
+
+enum MovementType {
+  IN
+  OUT
+  ADJUSTMENT
+  TRANSFER
+  RETURN
+  DAMAGED
+  EXPIRED
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  PICKING
+  PACKED
+  SHIPPED
+  DELIVERED
+  COMPLETED
+  CANCELLED
+  REFUNDED
+}
+
+enum OrderType {
+  RETAIL
+  WHOLESALE
+  STAFF
+}
+
+enum OrderSource {
+  ONLINE
+  IN_STORE
+  PHONE
+  EMAIL
+}
+
+enum PaymentStatus {
+  PENDING
+  AUTHORIZED
+  CAPTURED
+  FAILED
+  CANCELLED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum PaymentMethod {
+  CREDIT_CARD
+  DEBIT_CARD
+  PAYPAL
+  APPLE_PAY
+  GOOGLE_PAY
+  BANK_TRANSFER
+  CHECK
+  CASH
+  STORE_CREDIT
+}
+
+enum DeliveryStatus {
+  PENDING
+  SCHEDULED
+  IN_TRANSIT
+  DELIVERED
+  FAILED
+  CANCELLED
+}
+
+enum ConsultationType {
+  PLANT_CARE
+  GARDEN_DESIGN
+  PEST_CONTROL
+  SOIL_ANALYSIS
+  IRRIGATION
+  SEASONAL_CARE
+  PLANT_SELECTION
+}
+
+enum ConsultationStatus {
+  REQUESTED
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum LoyaltyTransactionType {
+  EARNED
+  REDEEMED
+  EXPIRED
+  BONUS
+  ADJUSTMENT
+}
+
+enum NotificationType {
+  ORDER_UPDATE
+  DELIVERY_UPDATE
+  PROMOTION
+  RESTOCK
+  CONSULTATION
+  SYSTEM
+  LOYALTY
+}
+
+// =====================================
+// NEW ENUMS FOR ENHANCED FEATURES
+// =====================================
+
+enum PlantHealthStatus {
+  EXCELLENT
+  GOOD
+  FAIR
+  POOR
+  CRITICAL
+  NEEDS_ATTENTION
+}
+
+enum DeathReason {
+  NATURAL_AGING
+  OVERWATERING
+  UNDERWATERING
+  DISEASE
+  PEST_DAMAGE
+  FROST_DAMAGE
+  HEAT_STRESS
+  TRANSPLANT_SHOCK
+  NUTRIENT_DEFICIENCY
+  ROOT_ROT
+  FUNGAL_INFECTION
+  BACTERIAL_INFECTION
+  VIRAL_INFECTION
+  PHYSICAL_DAMAGE
+  POOR_SOIL_CONDITIONS
+  IMPROPER_LIGHTING
+  CHEMICAL_BURN
+  CUSTOMER_DAMAGE
+  THEFT
+  OTHER
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  SENT
+  CONFIRMED
+  PARTIALLY_RECEIVED
+  RECEIVED
+  CANCELLED
+  COMPLETED
+}
+
+enum PurchasePaymentStatus {
+  PENDING
+  PARTIAL
+  PAID
+  OVERDUE
+  CANCELLED
+}
