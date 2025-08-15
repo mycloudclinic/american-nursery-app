@@ -11,7 +11,7 @@ import { prisma } from './prisma';
  * Implements custom role management for garden center users
  */
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
+  adapter: PrismaAdapter(prisma) as any,
   providers: [
     // Credentials provider for email/password authentication
     CredentialsProvider({
@@ -107,7 +107,7 @@ export const authOptions: NextAuthOptions = {
       // Send properties to the client
       if (token) {
         session.user.id = token.userId as string;
-        session.user.role = token.role as string;
+        session.user.role = token.role as any;
         session.user.businessName = token.businessName as string;
       }
 
@@ -154,7 +154,6 @@ export const authOptions: NextAuthOptions = {
 
   pages: {
     signIn: '/auth/signin',
-    signUp: '/auth/signup',
     error: '/auth/error',
   },
 

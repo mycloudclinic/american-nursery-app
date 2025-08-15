@@ -15,8 +15,8 @@ export function hasPermission(userRole: UserRole, permission: PermissionType): b
   }
   
   // Check if the role has the specific permission
-  const rolePermissions = PERMISSIONS[userRole];
-  return rolePermissions.includes(permission as any);
+  const rolePermissions = PERMISSIONS[userRole] as readonly PermissionType[];
+  return rolePermissions ? rolePermissions.includes(permission) : false;
 }
 
 /**

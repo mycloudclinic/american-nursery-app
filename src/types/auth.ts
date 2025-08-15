@@ -175,22 +175,7 @@ export const ROLE_HIERARCHY: Record<UserRole, number> = {
   ADMIN: 7,
 };
 
-// Helper function to check if user has permission
-export function hasPermission(userRole: UserRole, permission: PermissionType): boolean {
-  // Admin has full access
-  if (userRole === 'ADMIN') {
-    return true;
-  }
-  
-  // Check if the role has the specific permission
-  const rolePermissions = PERMISSIONS[userRole];
-  return rolePermissions.includes(permission as any);
-}
 
-// Helper function to check if user role has higher or equal level than required role
-export function hasRoleLevel(userRole: UserRole, requiredRole: UserRole): boolean {
-  return ROLE_HIERARCHY[userRole] >= ROLE_HIERARCHY[requiredRole];
-}
 
 // Authentication form types
 export interface SignInFormData {
