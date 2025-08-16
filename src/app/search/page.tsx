@@ -1,11 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, X, Clock, TrendingUp } from 'lucide-react';
+import { Search, X, Clock, TrendingUp, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { BottomNavigation } from '@/components/layout/BottomNavigation';
+import { useRouter } from 'next/navigation';
 
 const recentSearches = [
   'Jade Plant',
@@ -56,6 +58,7 @@ const allPlants = [
 ];
 
 export default function SearchPage() {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(true);
@@ -96,6 +99,9 @@ export default function SearchPage() {
       {/* Header with Search */}
       <header className="sticky top-0 z-50 w-full bg-background border-b px-4 py-3">
         <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => router.push('/')}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
@@ -202,7 +208,7 @@ export default function SearchPage() {
                 <p className="text-muted-foreground mb-4">
                   Try adjusting your search or browse our categories
                 </p>
-                <Button variant="outline">Browse Categories</Button>
+                <Button variant="outline" onClick={() => router.push('/products')}>Browse Categories</Button>
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-4">
@@ -252,6 +258,9 @@ export default function SearchPage() {
           </div>
         )}
       </div>
+
+      {/* Bottom Navigation */}
+      <BottomNavigation />
     </div>
   );
 }

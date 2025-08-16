@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useRouter } from 'next/navigation';
 
 // Sample plant data
 const samplePlants = [
@@ -47,6 +48,7 @@ const samplePlants = [
 const categories = ['All', 'Indoor', 'Outdoor', 'Cactus'];
 
 export default function HomePage() {
+  const router = useRouter();
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [cartItems, setCartItems] = useState<string[]>([]);
   const [favorites, setFavorites] = useState<string[]>([]);
@@ -95,13 +97,13 @@ export default function HomePage() {
 
           {/* Right section - Actions */}
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" onClick={() => router.push('/search')}>
               <Search className="h-5 w-5" />
             </Button>
             <Button variant="ghost" size="icon">
               <Bell className="h-5 w-5" />
             </Button>
-            <Button variant="ghost" size="icon" className="relative">
+            <Button variant="ghost" size="icon" className="relative" onClick={() => router.push('/cart')}>
               <ShoppingCart className="h-5 w-5" />
               {cartItems.length > 0 && (
                 <Badge 
@@ -134,7 +136,7 @@ export default function HomePage() {
               variant="secondary" 
               size="sm" 
               className="rounded-full"
-              onClick={() => window.location.href = '/products'}
+              onClick={() => router.push('/products')}
             >
               Shop Now
             </Button>
@@ -157,7 +159,7 @@ export default function HomePage() {
             variant="ghost" 
             size="sm" 
             className="text-primary"
-            onClick={() => window.location.href = '/products'}
+            onClick={() => router.push('/products')}
           >
             See All
           </Button>
@@ -262,7 +264,7 @@ export default function HomePage() {
             variant="ghost" 
             size="sm" 
             className="flex flex-col items-center gap-1 h-auto py-2 px-3"
-            onClick={() => window.location.href = '/search'}
+            onClick={() => router.push('/search')}
           >
             <Search className="h-5 w-5 text-muted-foreground" />
             <span className="text-xs font-medium text-muted-foreground">Search</span>
@@ -271,7 +273,7 @@ export default function HomePage() {
             variant="ghost" 
             size="sm" 
             className="flex flex-col items-center gap-1 h-auto py-2 px-3 relative"
-            onClick={() => window.location.href = '/cart'}
+            onClick={() => router.push('/cart')}
           >
             <ShoppingCart className="h-5 w-5 text-muted-foreground" />
             <span className="text-xs font-medium text-muted-foreground">Cart</span>
@@ -288,7 +290,7 @@ export default function HomePage() {
             variant="ghost" 
             size="sm" 
             className="flex flex-col items-center gap-1 h-auto py-2 px-3 relative"
-            onClick={() => window.location.href = '/favorites'}
+            onClick={() => router.push('/favorites')}
           >
             <Heart className="h-5 w-5 text-muted-foreground" />
             <span className="text-xs font-medium text-muted-foreground">Favorites</span>
@@ -305,7 +307,7 @@ export default function HomePage() {
             variant="ghost" 
             size="sm" 
             className="flex flex-col items-center gap-1 h-auto py-2 px-3"
-            onClick={() => window.location.href = '/profile'}
+            onClick={() => router.push('/profile')}
           >
             <User className="h-5 w-5 text-muted-foreground" />
             <span className="text-xs font-medium text-muted-foreground">Profile</span>

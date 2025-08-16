@@ -26,9 +26,18 @@ export const authOptions: NextAuthOptions = {
         }
 
         try {
-          // Find user by email
+          // Find user by email with all necessary fields
           const user = await prisma.user.findUnique({
             where: { email: credentials.email.toLowerCase() },
+            include: {
+              accountManager: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
+            },
           });
 
           if (!user || !user.hashedPassword) {
@@ -58,6 +67,13 @@ export const authOptions: NextAuthOptions = {
             image: user.image,
             role: user.role,
             businessName: user.businessName,
+            businessType: user.businessType,
+            wholesaleStatus: user.wholesaleStatus,
+            loyaltyPoints: user.loyaltyPoints,
+            totalSpent: Number(user.totalSpent),
+            accountManagerId: user.accountManagerId,
+            department: user.department,
+            permissions: user.permissions,
           };
         } catch (error) {
           console.error('Auth error:', error);
@@ -84,6 +100,13 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.role = user.role;
         token.businessName = user.businessName;
+        token.businessType = user.businessType;
+        token.wholesaleStatus = user.wholesaleStatus;
+        token.loyaltyPoints = user.loyaltyPoints;
+        token.totalSpent = user.totalSpent;
+        token.accountManagerId = user.accountManagerId;
+        token.department = user.department;
+        token.permissions = user.permissions;
         token.userId = user.id;
       }
 
@@ -91,11 +114,27 @@ export const authOptions: NextAuthOptions = {
       if (account && account.provider !== 'credentials') {
         const dbUser = await prisma.user.findUnique({
           where: { email: token.email! },
+          include: {
+            accountManager: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
         });
 
         if (dbUser) {
           token.role = dbUser.role;
           token.businessName = dbUser.businessName;
+          token.businessType = dbUser.businessType;
+          token.wholesaleStatus = dbUser.wholesaleStatus;
+          token.loyaltyPoints = dbUser.loyaltyPoints;
+          token.totalSpent = Number(dbUser.totalSpent);
+          token.accountManagerId = dbUser.accountManagerId;
+          token.department = dbUser.department;
+          token.permissions = dbUser.permissions;
           token.userId = dbUser.id;
         }
       }
@@ -109,6 +148,13 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.userId as string;
         session.user.role = token.role as any;
         session.user.businessName = token.businessName as string;
+        session.user.businessType = token.businessType as any;
+        session.user.wholesaleStatus = token.wholesaleStatus as any;
+        session.user.loyaltyPoints = token.loyaltyPoints as number;
+        session.user.totalSpent = token.totalSpent as number;
+        session.user.accountManagerId = token.accountManagerId as string;
+        session.user.department = token.department as string;
+        session.user.permissions = token.permissions as any;
       }
 
       return session;
@@ -137,6 +183,9 @@ export const authOptions: NextAuthOptions = {
                 image: user.image,
                 role: 'CUSTOMER',
                 emailVerified: new Date(),
+                wholesaleStatus: 'NOT_APPLIED',
+                loyaltyPoints: 0,
+                totalSpent: 0,
               },
             });
           }

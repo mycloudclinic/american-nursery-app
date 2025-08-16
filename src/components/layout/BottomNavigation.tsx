@@ -3,6 +3,7 @@
 import { Home, Search, ShoppingCart, Heart, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useRouter, usePathname } from 'next/navigation';
 
 interface BottomNavigationProps {
   activeTab?: string;
@@ -12,19 +13,20 @@ interface BottomNavigationProps {
 }
 
 const navItems = [
-  { id: 'home', icon: Home, label: 'Home' },
-  { id: 'search', icon: Search, label: 'Search' },
-  { id: 'cart', icon: ShoppingCart, label: 'Cart' },
-  { id: 'favorites', icon: Heart, label: 'Favorites' },
-  { id: 'profile', icon: User, label: 'Profile' },
+  { id: 'home', icon: Home, label: 'Home', path: '/' },
+  { id: 'search', icon: Search, label: 'Search', path: '/search' },
+  { id: 'cart', icon: ShoppingCart, label: 'Cart', path: '/cart' },
+  { id: 'favorites', icon: Heart, label: 'Favorites', path: '/favorites' },
+  { id: 'profile', icon: User, label: 'Profile', path: '/profile' },
 ];
 
 export function BottomNavigation({ 
-  activeTab = 'home', 
-  onTabChange,
   cartItemCount = 0,
   favoriteCount = 0
-}: BottomNavigationProps) {
+}: Omit<BottomNavigationProps, 'activeTab' | 'onTabChange'>) {
+  const router = useRouter();
+  const pathname = usePathname();
+  
   const getBadgeCount = (itemId: string) => {
     switch (itemId) {
       case 'cart':
@@ -35,13 +37,17 @@ export function BottomNavigation({
         return 0;
     }
   };
+  
+  const isActiveTab = (path: string) => {
+    return pathname === path;
+  };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 px-4 py-2 safe-bottom">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t px-4 py-2">
       <div className="flex items-center justify-around max-w-md mx-auto">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = activeTab === item.id;
+          const isActive = isActiveTab(item.path);
           const badgeCount = getBadgeCount(item.id);
           
           return (
@@ -49,12 +55,12 @@ export function BottomNavigation({
               key={item.id}
               variant="ghost"
               size="sm"
-              onClick={() => onTabChange?.(item.id)}
+              onClick={() => router.push(item.path)}
               className={`
                 relative flex flex-col items-center gap-1 h-auto py-2 px-3
                 ${isActive 
-                  ? 'text-emerald-800' 
-                  : 'text-gray-500 hover:text-gray-700'
+                  ? 'text-primary' 
+                  : 'text-muted-foreground hover:text-foreground'
                 }
               `}
             >
@@ -73,7 +79,7 @@ export function BottomNavigation({
               </div>
               <span 
                 className={`text-xs font-medium ${
-                  isActive ? 'text-emerald-800' : 'text-gray-500'
+                  isActive ? 'text-primary' : 'text-muted-foreground'
                 }`}
               >
                 {item.label}

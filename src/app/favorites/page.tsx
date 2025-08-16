@@ -1,10 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { Heart, ShoppingCart } from 'lucide-react';
+import { Heart, ShoppingCart, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { BottomNavigation } from '@/components/layout/BottomNavigation';
+import { useRouter } from 'next/navigation';
 
 const favoriteItems = [
   {
@@ -38,6 +40,7 @@ const favoriteItems = [
 ];
 
 export default function FavoritesPage() {
+  const router = useRouter();
   const [favorites, setFavorites] = useState(favoriteItems);
 
   const removeFavorite = (id: string) => {
@@ -59,7 +62,7 @@ export default function FavoritesPage() {
         <p className="text-muted-foreground text-center mb-6">
           Start adding plants to your favorites to see them here!
         </p>
-        <Button>Browse Plants</Button>
+        <Button onClick={() => router.push('/products')}>Browse Plants</Button>
       </div>
     );
   }
@@ -69,7 +72,12 @@ export default function FavoritesPage() {
       {/* Header */}
       <header className="sticky top-0 z-50 w-full bg-background border-b px-4 py-3">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold">My Favorites</h1>
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => router.push('/')}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h1 className="text-xl font-bold">My Favorites</h1>
+          </div>
           <Badge variant="outline">{favorites.length} plants</Badge>
         </div>
       </header>
@@ -185,6 +193,9 @@ export default function FavoritesPage() {
           </div>
         </div>
       </div>
+
+      {/* Bottom Navigation */}
+      <BottomNavigation />
     </div>
   );
 }

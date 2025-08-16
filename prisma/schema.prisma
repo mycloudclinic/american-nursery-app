@@ -68,9 +68,29 @@ model User {
   businessName          String?
   businessType          BusinessType?
   taxId                 String?
+  businessLicense       String?
+  businessYearsOperation Int?                  // Years in business
+  expectedMonthlyVolume Decimal?               @db.Decimal(10, 2)
+  
+  // Wholesale application and approval
+  wholesaleStatus       WholesaleStatus        @default(NOT_APPLIED)
+  wholesaleAppliedAt    DateTime?
+  wholesaleApprovedAt   DateTime?
+  wholesaleApprovedBy   String?                // Staff member ID who approved
+  approvedBy            User?                  @relation("WholesaleApprover", fields: [wholesaleApprovedBy], references: [id])
+  wholesaleNotes        String?                // Internal notes about wholesale account
+  
+  // Wholesale pricing and terms
   wholesaleDiscount     Decimal?               @db.Decimal(5, 2) // Percentage discount
   creditLimit           Decimal?               @db.Decimal(10, 2)
   paymentTerms          Int?                   // Days for payment
+  accountManagerId      String?                // Assigned wholesale account manager
+  
+  // Staff-specific fields
+  employeeId            String?                // Internal employee ID
+  department            String?                // Which department they work in
+  hireDate              DateTime?
+  permissions           Json?                  // Detailed permissions object
   
   // Address information
   addresses             Address[]
@@ -91,6 +111,9 @@ model User {
   managedInventory      InventoryItem[]        @relation("InventoryManager")
   assignedOrders        Order[]                @relation("AssignedStaff")
   deliveries            Delivery[]             @relation("DeliveryDriver")
+  accountManager        User?                  @relation("AccountManager", fields: [accountManagerId], references: [id])
+  managedWholesaleAccounts User[]              @relation("AccountManager")
+  approvedWholesaleAccounts User[]             @relation("WholesaleApprover")
 
   @@map("users")
 }
@@ -892,13 +915,18 @@ model Notification {
 // =====================================
 
 enum UserRole {
-  CUSTOMER
-  WHOLESALE_CUSTOMER
-  STAFF
-  INVENTORY_MANAGER
-  DELIVERY_DRIVER
-  MANAGER
-  ADMIN
+  // Customer roles
+  CUSTOMER                    // Primary user - browse, purchase, order history, profile, gardening resources
+  WHOLESALE_CUSTOMER          // Landscapers, contractors with special pricing
+  GUEST                       // Browse products but cannot purchase without account
+  
+  // Staff roles
+  EMPLOYEE                    // Sales Associate - view inventory, assist customers, process returns, manage pickup orders
+  ADMIN                       // Full control over app content, user management, order fulfillment, inventory, promotions, settings
+  MANAGER                     // Administrator/Manager role with full control
+  INVENTORY_MANAGER           // Manage product stock, update quantities, add products, track shipments
+  CONTENT_CREATOR            // Add/update gardening tips, plant care guides, blog posts, informational content
+  DELIVERY_DRIVER             // Manage delivery routes, update order statuses, communicate with customers
 }
 
 enum ContactMethod {
@@ -1138,4 +1166,13 @@ enum PurchasePaymentStatus {
   PAID
   OVERDUE
   CANCELLED
+}
+
+enum WholesaleStatus {
+  NOT_APPLIED             // Regular customer, hasn't applied for wholesale
+  APPLICATION_PENDING     // Applied but waiting for approval
+  APPROVED               // Approved wholesale customer
+  REJECTED               // Application was rejected
+  SUSPENDED              // Wholesale privileges temporarily suspended
+  CANCELLED              // Wholesale account cancelled
 }

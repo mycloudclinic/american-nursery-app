@@ -1,10 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { Minus, Plus, Trash2, ShoppingBag } from 'lucide-react';
+import { Minus, Plus, Trash2, ShoppingBag, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { BottomNavigation } from '@/components/layout/BottomNavigation';
+import { useRouter } from 'next/navigation';
 
 const cartItems = [
   {
@@ -35,6 +37,7 @@ const cartItems = [
 ];
 
 export default function CartPage() {
+  const router = useRouter();
   const [items, setItems] = useState(cartItems);
 
   const updateQuantity = (id: string, newQuantity: number) => {
@@ -71,7 +74,7 @@ export default function CartPage() {
         <p className="text-muted-foreground text-center mb-6">
           Add some beautiful plants to get started!
         </p>
-        <Button>Continue Shopping</Button>
+        <Button onClick={() => router.push('/products')}>Continue Shopping</Button>
       </div>
     );
   }
@@ -80,7 +83,12 @@ export default function CartPage() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-50 w-full bg-background border-b px-4 py-3">
-        <h1 className="text-xl font-bold">Shopping Cart</h1>
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => router.push('/')}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="text-xl font-bold">Shopping Cart</h1>
+        </div>
       </header>
 
       <div className="px-4 py-4 pb-32">
@@ -217,9 +225,12 @@ export default function CartPage() {
 
         {/* Continue Shopping */}
         <div className="mt-6 text-center">
-          <Button variant="outline">Continue Shopping</Button>
+          <Button variant="outline" onClick={() => router.push('/products')}>Continue Shopping</Button>
         </div>
       </div>
+
+      {/* Bottom Navigation */}
+      <BottomNavigation />
     </div>
   );
 }
